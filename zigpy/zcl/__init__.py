@@ -209,6 +209,11 @@ class Cluster(util.ListenableMixin, util.CatchingTaskMixin, metaclass=Registry):
                     for a in args[0]
                 ]
             )
+            attributes = {
+                self.attributes.get(a.attrid, [a.attrid])[0]: a.value.value
+                for a in args[0]
+            }
+            self.listener_event("attributes_updated", attributes)
             self.debug("Attribute report received: %s", valuestr)
             for attr in args[0]:
                 try:
@@ -240,11 +245,7 @@ class Cluster(util.ListenableMixin, util.CatchingTaskMixin, metaclass=Registry):
         return self._read_attributes(attributes, manufacturer=manufacturer)
 
     async def read_attributes(
-        self,
-        attributes,
-        allow_cache=False,
-        only_cache=False,
-        manufacturer=None,
+        self, attributes, allow_cache=False, only_cache=False, manufacturer=None
     ):
         success, failure = {}, {}
         attribute_ids = []

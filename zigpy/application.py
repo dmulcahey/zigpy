@@ -42,6 +42,7 @@ class ControllerApplication(zigpy.util.ListenableMixin, abc.ABC):
         self._ota = zigpy.ota.OTA(self)
         self._pan_id = None
         self._send_sequence = 0
+        self.quirks = zigpy.quirks
 
     async def _load_db(self) -> None:
         """Restore save state."""

@@ -23,6 +23,8 @@ class Status(enum.IntEnum):
 
     # No initialization done
     NEW = 0
+    # Basic init
+    BASIC_INIT = 3
     # ZDO endpoint discovery done
     ZDO_INIT = 1
     # Endpoints initialized
@@ -99,8 +101,33 @@ class Device(zigpy.util.LocalLogMixin, zigpy.util.ListenableMixin):
         if await self.get_node_descriptor():
             self._application.listener_event("node_descriptor_updated", self)
 
+    def attributes_updated(self, attributes):
+        LOGGER.info("attributes: %s", attributes)
+        if "model" in attributes and self.status == Status.BASIC_INIT:
+            candidates = self.application.quirks.get_device_metadata(
+                attributes["model"], attributes.get("manufacturer")
+            )
+            if candidates:
+                if self._init_handle:
+                    self._init_handle.cancel()
+                device_metadata = candidates[0]
+                LOGGER.info("signature: %s", device_metadata.signature)
+                self._init_from_quirk(device_metadata.signature)
+
+    async def maybe_init_from_quirks(self):
+        self.status = Status.BASIC_INIT
+        temp_endpoint = self.add_endpoint(1)
+        temp_endpoint.profile_id = 260
+        temp_endpoint.status = Status.ZDO_INIT
+        basic_cluster = temp_endpoint.add_input_cluster(0)
+        basic_cluster.add_listener(self)
+        await basic_cluster.read_attributes(
+            ["model", "manufacturer"], allow_cache=False, only_cache=False
+        )
+
     async def _initialize(self):
         if self.status == Status.NEW:
+            await self.maybe_init_from_quirks()
             if self._node_handle is None or self._node_handle.done():
                 self._node_handle = asyncio.ensure_future(self.get_node_descriptor())
             await self._node_handle
@@ -142,7 +169,9 @@ class Device(zigpy.util.LocalLogMixin, zigpy.util.ListenableMixin):
             self.application.listener_event("device_init_failure", self)
             await self.application.remove(self.ieee)
             return
+        self._finish_init()
 
+    def _finish_init(self):
         self.status = Status.ENDPOINTS_INIT
         self.initializing = False
         self._application.device_initialized(self)
@@ -151,6 +180,19 @@ class Device(zigpy.util.LocalLogMixin, zigpy.util.ListenableMixin):
         ep = zigpy.endpoint.Endpoint(self, endpoint_id)
         self.endpoints[endpoint_id] = ep
         return ep
+
+    def _init_from_quirk(self, signature):
+        LOGGER.info("in init from quirk: sig: %s", signature)
+        model_info = signature["models_info"][0]
+        self.manufacturer = model_info[0]
+        self.model = model_info[1]
+        for endpoint_id, endpoint in signature["endpoints"].items():
+            ep = self.add_endpoint(endpoint_id)
+            ep.model = self.model
+            ep.manufacturer = self.manufacturer
+            ep.initialize_from_quirk(endpoint)
+        self.status = Status.ZDO_INIT
+        self._finish_init()
 
     async def add_to_group(self, grp_id: int, name: str = None):
         for ep_id, ep in self.endpoints.items():
@@ -218,11 +260,6 @@ class Device(zigpy.util.LocalLogMixin, zigpy.util.ListenableMixin):
 
     def handle_message(self, profile, cluster, src_ep, dst_ep, message):
         self.last_seen = time.time()
-        if not self.node_desc.is_valid and (
-            self._node_handle is None or self._node_handle.done()
-        ):
-            self._node_handle = asyncio.ensure_future(self.refresh_node_descriptor())
-
         try:
             hdr, args = self.deserialize(src_ep, cluster, message)
         except ValueError as e:
@@ -234,7 +271,7 @@ class Device(zigpy.util.LocalLogMixin, zigpy.util.ListenableMixin):
             )
             return
         except KeyError as e:
-            LOGGER.debug(
+            LOGGER.error(
                 (
                     "Ignoring message (%s) on cluster %d: "
                     "unknown endpoint or cluster id: %s"

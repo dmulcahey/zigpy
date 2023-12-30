@@ -292,7 +292,7 @@ class Requests(dict):
         try:
             return Request(self, sequence)
         except AssertionError:
-            LOGGER.debug("Duplicate %s TSN", sequence)
+            LOGGER.error("Duplicate TSN: %s pending: %s", sequence, set(self))
             raise ControllerException(f"duplicate {sequence} TSN") from AssertionError
 
 

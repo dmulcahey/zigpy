@@ -69,7 +69,6 @@ class ControllerApplication(zigpy.util.ListenableMixin, abc.ABC):
         self._groups = zigpy.group.Groups(self)
         self._listeners = {}
         self._ota = zigpy.ota.OTA(self)
-        self._send_sequence = 0
         self._tasks: set[asyncio.Future[Any]] = set()
 
         self._watchdog_task: asyncio.Task | None = None
@@ -897,7 +896,7 @@ class ControllerApplication(zigpy.util.ListenableMixin, abc.ABC):
         data: bytes,
         broadcast_address: t.BroadcastAddress = t.BroadcastAddress.RX_ON_WHEN_IDLE,
     ) -> tuple[zigpy.zcl.foundation.Status, str]:
-        """Submit and send data out as an unicast transmission.
+        """Submit and send data out as an broadcast transmission.
         :param profile: Zigbee Profile ID to use for outgoing message
         :param cluster: cluster id where the message is being sent
         :param src_ep: source endpoint id
@@ -920,7 +919,7 @@ class ControllerApplication(zigpy.util.ListenableMixin, abc.ABC):
                     addr_mode=t.AddrMode.Broadcast, address=broadcast_address
                 ),
                 dst_ep=dst_ep,
-                tsn=sequence,
+                tsn=None,
                 profile_id=profile,
                 cluster_id=cluster,
                 data=t.SerializableBytes(data),
@@ -1245,10 +1244,6 @@ class ControllerApplication(zigpy.util.ListenableMixin, abc.ABC):
             broadcast_address=t.BroadcastAddress.ALL_ROUTERS_AND_COORDINATOR,
         )
         await self.permit_ncp(time_s)
-
-    def get_sequence(self) -> t.uint8_t:
-        self._send_sequence = (self._send_sequence + 1) % 256
-        return self._send_sequence
 
     def get_device(
         self, ieee: t.EUI64 = None, nwk: t.NWK | int = None

@@ -909,17 +909,18 @@ class ControllerApplication(zigpy.util.ListenableMixin, abc.ABC):
         :param broadcast_address: broadcast address.
         """
 
+        src_addr = t.AddrModeAddress(
+            addr_mode=t.AddrMode.NWK, address=self.state.node_info.nwk
+        )
         await self.send_packet(
             t.ZigbeePacket(
-                src=t.AddrModeAddress(
-                    addr_mode=t.AddrMode.NWK, address=self.state.node_info.nwk
-                ),
+                src=src_addr,
                 src_ep=src_ep,
                 dst=t.AddrModeAddress(
                     addr_mode=t.AddrMode.Broadcast, address=broadcast_address
                 ),
                 dst_ep=dst_ep,
-                tsn=None,
+                tsn=self.get_device_with_address(src_addr).get_sequence(),
                 profile_id=profile,
                 cluster_id=cluster,
                 data=t.SerializableBytes(data),

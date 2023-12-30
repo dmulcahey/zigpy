@@ -33,6 +33,7 @@ class Group(ListenableMixin, dict):
         self._endpoint: GroupEndpoint = GroupEndpoint(self)
         if groups is not None:
             self.add_listener(groups)
+        self._send_sequence = 0
 
     def add_member(self, ep: Endpoint, suppress_event: bool = False) -> Group:
         if not isinstance(ep, Endpoint):
@@ -82,6 +83,10 @@ class Group(ListenableMixin, dict):
         return "<{} group_id={} name='{}' members={}>".format(
             self.__class__.__name__, self.group_id, self.name, super().__repr__()
         )
+
+    def get_sequence(self) -> t.uint8_t:
+        self._send_sequence = (self._send_sequence + 1) % 256
+        return self._send_sequence
 
     @property
     def application(self) -> ControllerApplication:

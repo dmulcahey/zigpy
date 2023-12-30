@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import datetime, timezone
 import enum
 import itertools
@@ -296,7 +297,9 @@ class Device(zigpy.util.LocalLogMixin, zigpy.util.ListenableMixin):
             timeout = APS_REPLY_TIMEOUT_EXTENDED
             extended_timeout = True
 
-        with self._pending.new(sequence) as req:
+        with (
+            self._pending.new(sequence) if expect_reply else contextlib.nullcontext()
+        ) as req:
             await self._application.request(
                 self,
                 profile,

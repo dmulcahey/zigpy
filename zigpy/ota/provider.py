@@ -4,6 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from collections import defaultdict
+import dataclasses
 import datetime
 import hashlib
 import io
@@ -17,10 +18,10 @@ import typing
 import urllib.parse
 
 import aiohttp
-import attr
 
 from zigpy.config import CONF_OTA_DIR, CONF_OTA_SONOFF_URL
 from zigpy.ota.image import BaseOTAImage, ImageKey, OTAImageHeader, parse_ota_image
+import zigpy.types as t
 import zigpy.util
 
 LOGGER = logging.getLogger(__name__)
@@ -101,11 +102,11 @@ class Basic(zigpy.util.LocalLogMixin, ABC):
         return LOGGER.log(lvl, msg, *args, **kwargs)
 
 
-@attr.s
+@dataclasses.dataclass
 class IKEAImage:
-    image_type: int = attr.ib()
-    binary_url: str = attr.ib()
-    sha3_256_sum: str = attr.ib()
+    image_type: int = dataclasses.field()
+    binary_url: str = dataclasses.field()
+    sha3_256_sum: str = dataclasses.field()
 
     @classmethod
     def new(cls, data: dict[str, str | int]) -> IKEAImage:
@@ -205,15 +206,15 @@ ckMLyxbeNPXdQQIwQc2YZDq/Mz0mOkoheTUWiZxK2a5bk0Uz1XuGshXmQvEg5TGy
         return key.manufacturer_id != self.MANUFACTURER_ID
 
 
-@attr.s
+@dataclasses.dataclass
 class LedvanceImage:
     """Ledvance image handler."""
 
-    manufacturer_id = attr.ib()
-    image_type = attr.ib()
-    version = attr.ib(default=None)
-    image_size = attr.ib(default=None)
-    url = attr.ib(default=None)
+    manufacturer_id: t.uint16_t = dataclasses.field()
+    image_type: t.uint16_t = dataclasses.field()
+    version = dataclasses.field(default=None)
+    image_size = dataclasses.field(default=None)
+    url = dataclasses.field(default=None)
 
     @classmethod
     def new(cls, data):
@@ -325,15 +326,15 @@ class Ledvance(Basic):
         self.update_expiration()
 
 
-@attr.s
+@dataclasses.dataclass(kw_only=True)
 class SalusImage:
     """Salus image handler."""
 
-    manufacturer_id = attr.ib()
-    model = attr.ib()
-    version = attr.ib(default=None)
-    image_size = attr.ib(default=None)
-    url = attr.ib(default=None)
+    manufacturer_id: t.uint16_t = dataclasses.field()
+    model = dataclasses.field()
+    version = dataclasses.field(default=None)
+    image_size = dataclasses.field(default=None)
+    url = dataclasses.field(default=None)
 
     @classmethod
     def new(cls, data):
@@ -433,13 +434,13 @@ class Salus(Basic):
         self.update_expiration()
 
 
-@attr.s
+@dataclasses.dataclass
 class SONOFFImage:
-    manufacturer_id = attr.ib()
-    image_type = attr.ib()
-    version = attr.ib(default=None)
-    image_size = attr.ib(default=None)
-    url = attr.ib(default=None)
+    manufacturer_id: t.uint16_t = dataclasses.field()
+    image_type = dataclasses.field()
+    version = dataclasses.field(default=None)
+    image_size = dataclasses.field(default=None)
+    url = dataclasses.field(default=None)
 
     @classmethod
     def new(cls, data):
@@ -514,12 +515,12 @@ class Sonoff(Basic):
         return key.manufacturer_id != self.MANUFACTURER_ID
 
 
-@attr.s
+@dataclasses.dataclass(kw_only=True)
 class FileImage:
-    REFRESH = datetime.timedelta(hours=24)
+    file_name: str = dataclasses.field(default=None)
+    header: OTAImageHeader = dataclasses.field(default_factory=OTAImageHeader)
 
-    file_name = attr.ib(default=None)
-    header = attr.ib(factory=OTAImageHeader)
+    REFRESH = datetime.timedelta(hours=24)
 
     @property
     def key(self) -> ImageKey:
@@ -642,12 +643,12 @@ class FileStore(Basic):
         self.update_expiration()
 
 
-@attr.s
+@dataclasses.dataclass(kw_only=True)
 class INOVELLIImage:
-    manufacturer_id = attr.ib()
-    image_type = attr.ib()
-    version = attr.ib()
-    url = attr.ib()
+    manufacturer_id: t.uint16_t
+    image_type: t.uint16_t
+    version: t.uint32_t
+    url: str
 
     @classmethod
     def from_json(cls, obj: dict[str, str | int]) -> INOVELLIImage:
@@ -737,14 +738,14 @@ class Inovelli(Basic):
         return key.manufacturer_id != self.MANUFACTURER_ID
 
 
-@attr.s
+@dataclasses.dataclass(kw_only=True)
 class ThirdRealityImage:
-    model = attr.ib()
-    url = attr.ib()
-    version = attr.ib()
-    image_type = attr.ib()
-    manufacturer_id = attr.ib()
-    file_version = attr.ib()
+    model: str = dataclasses.field()
+    url: str = dataclasses.field()
+    version: t.uint32_t = dataclasses.field()
+    image_type: t.uint16_t = dataclasses.field()
+    manufacturer_id: t.uint16_t = dataclasses.field()
+    file_version: t.uint32_t = dataclasses.field()
 
     @classmethod
     def from_json(cls, obj: dict[str, typing.Any]) -> ThirdRealityImage:
@@ -821,20 +822,20 @@ class ThirdReality(Basic):
         return key.manufacturer_id not in self.MANUFACTURER_IDS
 
 
-@attr.s
+@dataclasses.dataclass(kw_only=True)
 class RemoteImage:
-    binary_url = attr.ib()
-    file_version = attr.ib()
-    image_type = attr.ib()
-    manufacturer_id = attr.ib()
-    changelog = attr.ib()
-    checksum = attr.ib()
+    binary_url: str = dataclasses.field()
+    file_version: t.uint32_t = dataclasses.field()
+    image_type: t.uint16_t = dataclasses.field()
+    manufacturer_id: t.uint16_t = dataclasses.field()
+    changelog: str = dataclasses.field()
+    checksum: str = dataclasses.field()
 
     # Optional
-    min_hardware_version = attr.ib()
-    max_hardware_version = attr.ib()
-    min_current_file_version = attr.ib()
-    max_current_file_version = attr.ib()
+    min_hardware_version: t.uint16_t = dataclasses.field()
+    max_hardware_version: t.uint16_t = dataclasses.field()
+    min_current_file_version: t.uint32_t = dataclasses.field()
+    max_current_file_version: t.uint32_t = dataclasses.field()
 
     @classmethod
     def from_json(cls, obj: dict[str, typing.Any]) -> RemoteImage:

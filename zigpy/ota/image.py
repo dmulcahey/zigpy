@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import logging
-
-import attr
 
 import zigpy.types as t
 
 LOGGER = logging.getLogger(__name__)
 
 
-@attr.s(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class ImageKey:
-    manufacturer_id = attr.ib(default=None)
-    image_type = attr.ib(default=None)
+    manufacturer_id: t.uint16_t = dataclasses.field(default=None)
+    image_type: t.uint16_t = dataclasses.field(default=None)
 
 
 class HWVersion(t.uint16_t):
@@ -181,16 +180,16 @@ class OTAImage(t.Struct, BaseOTAImage):
         return res
 
 
-@attr.s
+@dataclasses.dataclass(frozen=True)
 class HueSBLOTAImage(BaseOTAImage):
     """Unique OTA image format for certain Hue devices. Starts with a valid header but does
     not contain any valid subelements beyond that point.
     """
 
-    SUBELEMENTS_MAGIC = b"\x2A\x00\x01"
+    header: OTAImageHeader = dataclasses.field(default=None)
+    data: bytes = dataclasses.field(default=None)
 
-    header = attr.ib(default=None)
-    data = attr.ib(default=None)
+    SUBELEMENTS_MAGIC = b"\x2A\x00\x01"
 
     def serialize(self) -> bytes:
         return self.header.serialize() + self.data

@@ -9,11 +9,11 @@ from . import basic
 from .struct import Struct
 
 if typing.TYPE_CHECKING:
-    from typing_extensions import Self
+    pass
 
 
 class BaseDataclassMixin:
-    def replace(self, **kwargs) -> Self:
+    def replace(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
 
 

@@ -1,10 +1,9 @@
 """OTA support for Zigbee devices."""
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import logging
-
-import attr
 
 from zigpy.config import (
     CONF_OTA,
@@ -32,14 +31,14 @@ TIMEDELTA_0 = datetime.timedelta()
 DELAY_EXPIRATION = datetime.timedelta(hours=2)
 
 
-@attr.s
+@dataclasses.dataclass(kw_only=True)
 class CachedImage:
+    image: BaseOTAImage = dataclasses.field(default=None)
+    expires_on: datetime = dataclasses.field(default=None)
+    cached_data: bytes = dataclasses.field(default=None)
+
     MAXIMUM_DATA_SIZE = 40
     DEFAULT_EXPIRATION = datetime.timedelta(hours=18)
-
-    image = attr.ib(default=None)
-    expires_on = attr.ib(default=None)
-    cached_data = attr.ib(default=None)
 
     @classmethod
     def new(cls, img: BaseOTAImage) -> CachedImage:
